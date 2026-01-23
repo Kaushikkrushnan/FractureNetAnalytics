@@ -33,6 +33,7 @@ export function Dashboard() {
 
   const handlePredict = async (formData: FormData) => {
     setIsLoading(true)
+    setResult(null) // Clear previous results
 
     try {
       // Call the Next.js API route which proxies to Flask backend
@@ -69,8 +70,16 @@ export function Dashboard() {
       })
     } catch (error) {
       console.error('Prediction error:', error)
-      // Show error state - you could add error handling UI here
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to get prediction'}`)
+      // Set error state with user-friendly message
+      setResult({
+        suitable: false,
+        confidence: 0,
+        fieldStage: formData.fieldStage,
+        explanations: [{
+          text: `Unable to get prediction: ${error instanceof Error ? error.message : 'Please ensure the Flask backend is running and try again.'}`,
+          positive: false
+        }]
+      })
     } finally {
       setIsLoading(false)
     }

@@ -267,8 +267,12 @@ def predict():
         return jsonify(response)
         
     except Exception as e:
-        print(f"Error during prediction: {e}")
-        return jsonify({'error': f'Prediction error: {str(e)}'}), 500
+        # Log the full error internally
+        print(f"Error during prediction: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Return generic error message to client
+        return jsonify({'error': 'An error occurred during prediction. Please check your input and try again.'}), 500
 
 
 @app.route('/test-cases', methods=['GET'])
@@ -354,6 +358,10 @@ if __name__ == '__main__':
     # Load model and preprocessors on startup
     if load_model_and_preprocessors():
         print("Starting Flask server...")
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        # Use debug=True only in development; set to False in production
+        # Set via environment variable: FLASK_ENV=production
+        import os
+        debug_mode = os.getenv('FLASK_ENV') != 'production'
+        app.run(host='0.0.0.0', port=5000, debug=debug_mode)
     else:
         print("Failed to load model and preprocessors. Exiting.")
