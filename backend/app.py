@@ -58,26 +58,20 @@ def preprocess_input(input_data):
     Returns:
         numpy array ready for model prediction
     """
-    # Map input field names to expected column names
-    field_mapping = {
-        'porosity': 'Porosity',
-        'oilSaturation': 'Oil Saturation',
-        'waterSaturation': 'Water Saturation',
-        'depth': 'depth ft',
-        'netPay': 'Net Pay (ft)',
-        'reservoirPressure': 'reservoir pressure psi',
-        'viscosity': 'viscosity',
-        'permeability': 'k_md_synth'
-    }
+    # Get input values and convert percentages to fractions
+    porosity = float(input_data.get('porosity', 0)) / 100.0  # Convert from percentage to fraction
+    oil_sat = float(input_data.get('oilSaturation', 0)) / 100.0  # Convert from percentage to fraction
+    water_sat = float(input_data.get('waterSaturation', 0)) / 100.0  # Convert from percentage to fraction
+    depth = float(input_data.get('depth', 0))
+    net_pay = float(input_data.get('netPay', 0))
+    reservoir_pressure = float(input_data.get('reservoirPressure', 0))
+    viscosity = float(input_data.get('viscosity', 0))
+    permeability = float(input_data.get('permeability', 0))
     
-    # Create feature array with base features
-    features = []
-    for key, column_name in field_mapping.items():
-        value = float(input_data.get(key, 0))
-        features.append(value)
+    # Create feature array
+    features = [porosity, oil_sat, water_sat, depth, net_pay, reservoir_pressure, viscosity, permeability]
     
     # Handle stage one-hot encoding
-    # preprocessed_columns includes: base features + stage_developed field + stage_early-stage field
     stage = input_data.get('fieldStage', 'early')
     
     # Map stage values
@@ -88,9 +82,11 @@ def preprocess_input(input_data):
     }
     stage_value = stage_mapping.get(stage, 'early-stage field')
     
-    # Add one-hot encoded stage features
+    # Add one-hot encoded stage features (drop_first=True, so 'appraisal stage' is the reference)
     # Based on preprocessed_columns: ['stage_developed field', 'stage_early-stage field']
-    # Note: appraisal stage is represented by both being 0
+    # appraisal stage: both are 0
+    # developed field: developed=1, early=0
+    # early-stage field: developed=0, early=1
     stage_developed = 1 if stage_value == 'developed field' else 0
     stage_early = 1 if stage_value == 'early-stage field' else 0
     
