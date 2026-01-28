@@ -55,8 +55,15 @@ export function Dashboard() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Prediction failed')
+        let errorMessage = 'Prediction failed'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If response is not JSON, use default error message
+          errorMessage = `Prediction failed with status ${response.status}`
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
