@@ -34,57 +34,56 @@ export function Dashboard() {
   const handlePredict = async (formData: FormData) => {
     setIsLoading(true)
 
-    // Simulate API call to ML backend
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Call the ML model API
+      const response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          porosity: Number.parseFloat(formData.porosity) || 0,
+          waterSaturation: Number.parseFloat(formData.waterSaturation) || 0,
+          oilSaturation: Number.parseFloat(formData.oilSaturation) || 0,
+          depth: Number.parseFloat(formData.depth) || 0,
+          netPay: Number.parseFloat(formData.netPay) || 0,
+          reservoirPressure: Number.parseFloat(formData.reservoirPressure) || 0,
+          viscosity: Number.parseFloat(formData.viscosity) || 0,
+          permeability: Number.parseFloat(formData.permeability) || 0,
+          fieldStage: formData.fieldStage,
+        }),
+      })
 
-    // Mock prediction result based on form data
-    const porosity = Number.parseFloat(formData.porosity) || 0
-    const waterSat = Number.parseFloat(formData.waterSaturation) || 0
-    const netPay = Number.parseFloat(formData.netPay) || 0
-    const permeability = Number.parseFloat(formData.permeability) || 0
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Prediction failed')
+      }
 
-    const suitable = porosity > 15 && waterSat < 50 && netPay > 20 && permeability > 10
-    const confidence = Math.min(95, Math.max(55, 70 + (porosity - 15) * 2 + (50 - waterSat) * 0.5))
-
-    const explanations = [
-      {
-        text:
-          porosity > 15
-            ? "High porosity strongly supports fracture propagation potential"
-            : "Low porosity may limit fracture effectiveness",
-        positive: porosity > 15,
-      },
-      {
-        text:
-          netPay > 20
-            ? "Adequate net pay thickness improves sweep efficiency"
-            : "Limited net pay may reduce treatment effectiveness",
-        positive: netPay > 20,
-      },
-      {
-        text:
-          waterSat < 50
-            ? "Favorable water saturation supports oil displacement"
-            : "High water saturation may reduce oil displacement efficiency",
-        positive: waterSat < 50,
-      },
-      {
-        text:
-          permeability > 10
-            ? "Good permeability enhances fluid flow characteristics"
-            : "Low permeability may restrict fluid movement",
-        positive: permeability > 10,
-      },
-    ]
-
-    setResult({
-      suitable,
-      confidence: Math.round(confidence),
-      fieldStage: formData.fieldStage,
-      explanations,
-    })
-
-    setIsLoading(false)
+      const data = await response.json()
+      
+      setResult({
+        suitable: data.suitable,
+        confidence: data.confidence,
+        fieldStage: data.fieldStage,
+        explanations: data.explanations,
+      })
+    } catch (error) {
+      console.error('Prediction error:', error)
+      // Set an error state in the result
+      setResult({
+        suitable: false,
+        confidence: 0,
+        fieldStage: formData.fieldStage,
+        explanations: [
+          {
+            text: error instanceof Error ? error.message : 'Failed to get prediction from ML model. Please ensure the backend is running.',
+            positive: false,
+          },
+        ],
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
