@@ -278,6 +278,28 @@ export default function TestPage() {
                   <CardTitle>Model Performance Insights</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  {/* Overfitting Warning */}
+                  {metrics.accuracy === 100 && metrics.precision === 100 && metrics.recall === 100 && (
+                    <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900 border-amber-300">
+                          ⚠️  Warning
+                        </Badge>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                            Potential Overfitting Detected
+                          </p>
+                          <p className="text-xs text-amber-800 dark:text-amber-200">
+                            The model achieves 100% on all metrics, which may indicate overfitting. The model outputs probabilities of exactly 0.0 or 1.0 with no values in between, suggesting it has memorized patterns rather than learned generalizable features. While the results appear perfect, this extreme confidence may not reflect real-world performance.
+                          </p>
+                          <p className="text-xs text-amber-800 dark:text-amber-200 mt-2">
+                            📖 <a href="/WHY_100_PERCENT_ACCURACY.md" className="underline">Learn more about why this happens</a>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-2">
                     <Badge variant={metrics.accuracy >= 80 ? "default" : "secondary"}>
                       {metrics.accuracy >= 90 ? "Excellent" : metrics.accuracy >= 80 ? "Good" : "Needs Improvement"}
