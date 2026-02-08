@@ -354,6 +354,201 @@ def get_test_cases():
     return jsonify(test_cases)
 
 
+@app.route('/batch-predict', methods=['POST'])
+def batch_predict():
+    """
+    Batch prediction endpoint for testing multiple cases at once
+    
+    Expects JSON with an array of test cases
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'test_cases' not in data:
+            return jsonify({'error': 'No test cases provided'}), 400
+        
+        test_cases = data['test_cases']
+        results = []
+        
+        for idx, test_case in enumerate(test_cases):
+            try:
+                # Preprocess input
+                preprocessed_input = preprocess_input(test_case)
+                
+                # Make prediction
+                prediction_prob = model.predict(preprocessed_input, verbose=0)[0][0]
+                
+                # Convert probability to boolean (threshold at 0.5)
+                suitable = bool(prediction_prob > 0.5)
+                
+                # Calculate confidence
+                if suitable:
+                    confidence = float(prediction_prob * 100)
+                else:
+                    confidence = float((1 - prediction_prob) * 100)
+                
+                results.append({
+                    'index': idx,
+                    'suitable': suitable,
+                    'confidence': round(confidence, 2),
+                    'raw_probability': float(prediction_prob),
+                    'fieldStage': test_case.get('fieldStage')
+                })
+            except Exception as e:
+                results.append({
+                    'index': idx,
+                    'error': str(e)
+                })
+        
+        return jsonify({'results': results})
+        
+    except Exception as e:
+        print(f"Error during batch prediction: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'An error occurred during batch prediction'}), 500
+
+
+@app.route('/evaluate', methods=['POST'])
+def evaluate_model():
+    """
+    Evaluate model performance with test cases
+    
+    Expects JSON with:
+    - test_cases: array of input data
+    - actual_labels: array of true labels (boolean)
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'test_cases' not in data or 'actual_labels' not in data:
+            return jsonify({'error': 'Missing test_cases or actual_labels'}), 400
+        
+        test_cases = data['test_cases']
+        actual_labels = data['actual_labels']
+        
+        if len(test_cases) != len(actual_labels):
+            return jsonify({'error': 'Number of test cases must match number of labels'}), 400
+        
+        predictions = []
+        probabilities = []
+        
+        # Make predictions for all test cases
+        for test_case in test_cases:
+            try:
+                preprocessed_input = preprocess_input(test_case)
+                prediction_prob = model.predict(preprocessed_input, verbose=0)[0][0]
+                suitable = bool(prediction_prob > 0.5)
+                
+                predictions.append(suitable)
+                probabilities.append(float(prediction_prob))
+            except Exception as e:
+                print(f"Error in prediction: {str(e)}")
+                predictions.append(False)
+                probabilities.append(0.0)
+        
+        # Calculate metrics
+        true_positives = sum(1 for pred, actual in zip(predictions, actual_labels) 
+                           if pred and actual)
+        true_negatives = sum(1 for pred, actual in zip(predictions, actual_labels) 
+                           if not pred and not actual)
+        false_positives = sum(1 for pred, actual in zip(predictions, actual_labels) 
+                            if pred and not actual)
+        false_negatives = sum(1 for pred, actual in zip(predictions, actual_labels) 
+                            if not pred and actual)
+        
+        total = len(actual_labels)
+        accuracy = (true_positives + true_negatives) / total if total > 0 else 0
+        
+        precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0
+        recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        
+        metrics = {
+            'accuracy': round(accuracy * 100, 2),
+            'precision': round(precision * 100, 2),
+            'recall': round(recall * 100, 2),
+            'f1_score': round(f1_score * 100, 2),
+            'confusion_matrix': {
+                'true_positives': int(true_positives),
+                'true_negatives': int(true_negatives),
+                'false_positives': int(false_positives),
+                'false_negatives': int(false_negatives)
+            },
+            'total_cases': int(total),
+            'predictions': predictions,
+            'probabilities': probabilities
+        }
+        
+        return jsonify(metrics)
+        
+    except Exception as e:
+        print(f"Error during evaluation: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'An error occurred during evaluation'}), 500
+
+
+@app.route('/load-test-data', methods=['GET'])
+def load_test_data():
+    """
+    Load test data from test_final.csv and return in API format
+    """
+    try:
+        import pandas as pd
+        
+        # Load CSV file
+        csv_path = os.path.join(BASE_DIR, 'test_final.csv')
+        
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'Test data file not found'}), 404
+        
+        df = pd.read_csv(csv_path)
+        
+        # Limit to first 100 cases for frontend testing
+        limit = int(request.args.get('limit', 100))
+        df = df.head(limit)
+        
+        test_cases = []
+        actual_labels = []
+        
+        # Map CSV columns to API format
+        stage_mapping = {
+            'early-stage field': 'early',
+            'appraisal stage': 'appraisal',
+            'developed field': 'developed'
+        }
+        
+        for _, row in df.iterrows():
+            # Convert to percentages where needed
+            test_case = {
+                'porosity': float(row['Porosity'] * 100),  # Convert to percentage
+                'waterSaturation': float(row['Water Saturation'] * 100),  # Convert to percentage
+                'oilSaturation': float(row['Oil Saturation'] * 100),  # Convert to percentage
+                'depth': float(row['depth ft']),
+                'netPay': float(row['Net Pay (ft)']),
+                'reservoirPressure': float(row['reservoir pressure psi']),
+                'viscosity': float(row['viscosity']),
+                'permeability': float(row['k_md_synth']),
+                'fieldStage': stage_mapping.get(row['stage'], 'early')
+            }
+            
+            test_cases.append(test_case)
+            actual_labels.append(bool(row['fracture_flooding_success']))
+        
+        return jsonify({
+            'test_cases': test_cases,
+            'actual_labels': actual_labels,
+            'count': len(test_cases)
+        })
+        
+    except Exception as e:
+        print(f"Error loading test data: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error loading test data: {str(e)}'}), 500
+
+
 if __name__ == '__main__':
     # Load model and preprocessors on startup
     if load_model_and_preprocessors():
