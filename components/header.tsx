@@ -1,4 +1,4 @@
-import { Droplets, Info } from "lucide-react"
+import { Droplets, Info, FlaskConical } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
@@ -16,12 +16,20 @@ export function Header() {
               <p className="text-sm text-muted-foreground">AI-powered decision support for well analysis</p>
             </div>
           </div>
-          <Link href="/about">
-            <Button variant="outline" size="sm">
-              <Info className="mr-2 h-4 w-4" />
-              About
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/test">
+              <Button variant="outline" size="sm">
+                <FlaskConical className="mr-2 h-4 w-4" />
+                Model Testing
+              </Button>
+            </Link>
+            <Link href="/about">
+              <Button variant="outline" size="sm">
+                <Info className="mr-2 h-4 w-4" />
+                About
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </header>
